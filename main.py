@@ -140,6 +140,7 @@ def main():
 
     # Print the prompt and the list of phones loaded from the file
     print(f"\nTelephone switching simulation: {len(phone_order)} phones loaded.")
+    # Take phones and names from the phone_order list and print them in a string format
     print("Phones: " + ", ".join(f"{p.name} ({p.number})" for p in phone_order))
     print("\nCommands (a phone can be given by name or number):")
     print("  <Name or Phone> offhook              pick up the phone")

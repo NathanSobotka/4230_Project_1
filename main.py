@@ -1,10 +1,11 @@
 # import regex to enforce phone and name formats A-Za-z
 import re
+
 # import sys to read command line arguments
 import sys
 
-'''How to run the program:
-Command line: python3 main.py <phone file>'''
+"""How to run the program:
+Command line: python3 main.py <phone file>"""
 
 # Constants for phone states
 ONHOOK = "onhook idle"
@@ -72,11 +73,38 @@ def offhook(phone):
         print(f"{phone.name} hears dialtone")
     elif phone.state == RINGING:
         phone.state = TALKING
+        for p in phone.connected:
+            if p.state != TALKING:
+                p.state = TALKING
+
+        print(f"{phone.name} ", end="")
+        for item in phone.connected:
+            print(f"and {item.name} ", end="")
+        print("are talking")
     # already offhook: ignore
 
 
 def onhook(phone):
-    pass  # TODO
+    def disconnect_all():
+        # Remove connection from all phones connected to this one
+        for p in phone.connected:
+            p.connected.remove(phone)
+            if len(p.connected) == 0 and p.state == TALKING:  # If it was a 1-on-1
+                p.state = SILENCE
+                print(f"{p.name} hears silence")
+            elif p.state == RINGING:
+                p.state = ONHOOK  # If you decided to cancel your call.
+
+        # Disconnect phone from everybody
+        phone.connected.clear()
+
+    if phone.state == TALKING or RINGBACK:
+        phone.state = ONHOOK
+        disconnect_all()
+
+    # already onhook: ignore
+    elif phone.state != ONHOOK:
+        phone.state = ONHOOK
 
 
 def status():
@@ -84,7 +112,27 @@ def status():
 
 
 def call(phone, target):
-    pass  # TODO
+    if phone.state == ONHOOK:
+        print(f"{phone.name} hears silence")
+    elif phone.state == DIALTONE:
+        # look for the phone
+        if target not in phones:
+            print(f"{phone.name} hears denial")
+            return
+
+        other = phones[target]
+
+        if other.state == ONHOOK:
+            phone.state = RINGBACK
+            other.state = RINGING
+            print(f"{phone.name} hears ringback")
+            print(f"{other.name} hears ringing")
+
+            phone.connected.append(other)
+            other.connected.append(phone)
+        else:  # in ANY other state, other can't be reached.
+            print(f"{phone.name} hears busy")
+            phone.state = BUSY
 
 
 def conference(phone, target):
@@ -134,7 +182,9 @@ def parse_command(line):
 def main():
     # Base case: check for correct number of command line arguments
     if len(sys.argv) != 2:
-        print("Usage: python3 main.py <phone file>. You must provide a phone file as a command line argument.")
+        print(
+            "Usage: python3 main.py <phone file>. You must provide a phone file as a command line argument."
+        )
         return
     load_file(sys.argv[1])
 
@@ -145,9 +195,13 @@ def main():
     print("\nCommands (a phone can be given by name or number):")
     print("  <Name or Phone> offhook              pick up the phone")
     print("  <Name or Phone> onhook               hang up the phone")
-    print("  <Name or Phone> call <Name or Phone>         call another phone (needs dialtone)")
+    print(
+        "  <Name or Phone> call <Name or Phone>         call another phone (needs dialtone)"
+    )
     print("  <Name or Phone> conference <Name or Phone>   add a third phone to a call")
-    print("  <Name or Phone> transfer <Name or Phone>     transfer a call to another phone")
+    print(
+        "  <Name or Phone> transfer <Name or Phone>     transfer a call to another phone"
+    )
     print("  status                       show every phone's state")
     print("  quit                         exit the simulation\n")
 
@@ -156,7 +210,7 @@ def main():
         try:
             line = input("> ").strip()
         except EOFError:
-            print('\n Exiting simulation. Goodbye!')
+            print("\n Exiting simulation. Goodbye!")
             break
         if line == "quit":
             break

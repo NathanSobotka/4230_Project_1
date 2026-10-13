@@ -14,6 +14,8 @@ RINGBACK = "ringback"
 RINGING = "ringing"
 TALKING = "talking"
 SILENCE = "silence"
+DENIAL = "denial"
+TRANSFERRING = "transferring"
 BUSY = "busy"
 
 # Maximum number of phones allowed
@@ -26,6 +28,9 @@ class Phone:
         self.number = number  # string so a leading zero survives
         self.state = ONHOOK
         self.connected = []
+
+    def __repr__(self):
+        return f"{self.name} ({self.number})"
 
 
 phones = {}  # every phone, under both its name and its number
@@ -73,6 +78,24 @@ def offhook(phone):
         print(f"{phone.name} hears dialtone")
     elif phone.state == RINGING:
         phone.state = TALKING
+        if phone.connected[0].state == TRANSFERRING:
+            p = phone.connected[0]
+
+            phone.connected = p.connected.copy()
+            phone.connected.remove(phone)
+
+            # FIXME: This is supposed to swap the connected phone
+            #   of the phones the transferred phone is connected to.
+            #   However, this never ends up changing it causing a problem
+            #   when somebody hangs up after being transferred.
+            for i, item in enumerate(phone.connected):
+                if item == p:
+                    phone.connected[i] = phone
+
+            p.connected.clear()
+
+            p.state = SILENCE
+            print(f"{p.name} hears silence")
         for p in phone.connected:
             if p.state != TALKING:
                 p.state = TALKING
@@ -98,17 +121,17 @@ def onhook(phone):
         # Disconnect phone from everybody
         phone.connected.clear()
 
-    if phone.state == TALKING or RINGBACK:
+    # already onhook: ignore
+    if phone.state != ONHOOK and phone.state != RINGING:
         phone.state = ONHOOK
         disconnect_all()
 
-    # already onhook: ignore
-    elif phone.state != ONHOOK:
-        phone.state = ONHOOK
-
 
 def status():
-    pass  # TODO
+    for phone in phone_order:
+        print(
+            f"{phone.number} - {phone.name}\tSTATUS: {phone.state} \tConnected devices: {phone.connected}"
+        )
 
 
 def call(phone, target):
@@ -118,6 +141,7 @@ def call(phone, target):
         # look for the phone
         if target not in phones:
             print(f"{phone.name} hears denial")
+            phone.state = DENIAL
             return
 
         other = phones[target]
@@ -140,7 +164,25 @@ def conference(phone, target):
 
 
 def transfer(phone, target):
-    pass  # TODO
+    if phone.state != TALKING or target not in phones:
+        print(f"{phone.name} hears denial")
+        phone.state = DENIAL
+        return
+
+    other = phones[target]
+
+    if other.state != ONHOOK:
+        print(f"{phone.name} hears busy")
+        return
+
+    else:
+        phone.state = TRANSFERRING
+        other.state = RINGING
+        print(f"{phone.name} hears ringback")
+        print(f"{other.name} hears ringing")
+
+        other.connected.append(phone)
+        phone.connected.append(other)
 
 
 def parse_command(line):

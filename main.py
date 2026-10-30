@@ -14,9 +14,10 @@ RINGBACK = "ringback"
 RINGING = "ringing"
 TALKING = "talking"
 SILENCE = "silence"
-DENIAL = "denial"
+DENIAL = "denial    "
 TRANSFERRING = "transferring"
-BUSY = "busy"
+CONFERENCING = "conferencing"
+BUSY = "busy        "
 
 # Maximum number of phones allowed
 MAX_PHONES = 20
@@ -94,6 +95,16 @@ def offhook(phone):
 
             p.state = SILENCE
             print(f"{p.name} hears silence")
+        elif phone.connected[0].state == CONFERENCING:
+            p = phone.connected[0]
+
+            phone.connected = p.connected.copy()
+            phone.connected.remove(phone)
+            phone.connected.append(p)
+
+            for other in phone.connected:
+                if phone not in other.connected:
+                    other.connected.append(phone)
         for p in phone.connected:
             if p.state != TALKING:
                 p.state = TALKING
@@ -160,7 +171,29 @@ def call(phone, target):
 
 
 def conference(phone, target):
-    pass  # TODO
+    if phone.state != TALKING or target not in phones:
+        print(f"{phone.name} hears denial")
+        return
+
+    for item in phone.connected:
+        if item.state != TALKING:
+            print(f"{phone.name} hears denial")
+            return
+
+    other = phones[target]
+
+    if other.state != ONHOOK:
+        print(f"{phone.name} hears busy")
+        return
+
+    else:
+        phone.state = CONFERENCING
+        other.state = RINGING
+        print(f"{phone.name} hears ringback")
+        print(f"{other.name} hears ringing")
+
+        other.connected.append(phone)
+        phone.connected.append(other)
 
 
 def transfer(phone, target):

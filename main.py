@@ -45,7 +45,8 @@ def load_file(path):
             if not line:
                 continue
             if count >= MAX_PHONES:
-                print(f"Warning: more than {MAX_PHONES} phones, skipping '{line}'")
+                print(f"Warning: more than {
+                      MAX_PHONES} phones, skipping '{line}'")
                 continue
             parts = line.split()
             if len(parts) != 2:
@@ -84,13 +85,10 @@ def offhook(phone):
             phone.connected = p.connected.copy()
             phone.connected.remove(phone)
 
-            # FIXME: This is supposed to swap the connected phone
-            #   of the phones the transferred phone is connected to.
-            #   However, this never ends up changing it causing a problem
-            #   when somebody hangs up after being transferred.
-            for i, item in enumerate(phone.connected):
-                if item == p:
-                    phone.connected[i] = phone
+            for other in phone.connected:
+                for i, item in enumerate(other.connected):
+                    if item == p:
+                        other.connected[i] = phone
 
             p.connected.clear()
 
@@ -112,7 +110,8 @@ def onhook(phone):
         # Remove connection from all phones connected to this one
         for p in phone.connected:
             p.connected.remove(phone)
-            if len(p.connected) == 0 and p.state == TALKING:  # If it was a 1-on-1
+            # If it was a 1-on-1
+            if len(p.connected) == 0 and p.state == TALKING:
                 p.state = SILENCE
                 print(f"{p.name} hears silence")
             elif p.state == RINGING:
@@ -130,7 +129,8 @@ def onhook(phone):
 def status():
     for phone in phone_order:
         print(
-            f"{phone.number} - {phone.name}\tSTATUS: {phone.state} \tConnected devices: {phone.connected}"
+            f"{phone.number} - {phone.name}\tSTATUS: {
+                phone.state} \tConnected devices: {phone.connected}"
         )
 
 
@@ -231,9 +231,11 @@ def main():
     load_file(sys.argv[1])
 
     # Print the prompt and the list of phones loaded from the file
-    print(f"\nTelephone switching simulation: {len(phone_order)} phones loaded.")
+    print(f"\nTelephone switching simulation: {
+          len(phone_order)} phones loaded.")
     # Take phones and names from the phone_order list and print them in a string format
-    print("Phones: " + ", ".join(f"{p.name} ({p.number})" for p in phone_order))
+    print("Phones: " +
+          ", ".join(f"{p.name} ({p.number})" for p in phone_order))
     print("\nCommands (a phone can be given by name or number):")
     print("  <Name or Phone> offhook              pick up the phone")
     print("  <Name or Phone> onhook               hang up the phone")

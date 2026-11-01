@@ -127,12 +127,23 @@ def onhook(phone):
                 print(f"{p.name} hears silence")
             elif p.state == RINGING:
                 p.state = ONHOOK  # If you decided to cancel your call.
+            elif p.state == TRANSFERRING:
+                # Held party hung up mid-transfer: cancel the transfer, the
+                # call to the third phone carries on as a normal call.
+                p.state = RINGBACK
+                print(f"{p.name} hears ringback")
+
+        # Someone left a 3 way call: the other two keep talking
+        if three_way:
+            print(f"{phone.connected[0].name} and {phone.connected[1].name} are talking")
+            print(f"{phone.name} hears silence")
 
         # Disconnect phone from everybody
         phone.connected.clear()
 
     # already onhook: ignore
     if phone.state != ONHOOK and phone.state != RINGING:
+        three_way = phone.state == TALKING and len(phone.connected) == 2
         phone.state = ONHOOK
         disconnect_all()
 
@@ -152,7 +163,6 @@ def call(phone, target):
         # look for the phone
         if target not in phones:
             print(f"{phone.name} hears denial")
-            phone.state = DENIAL
             return
 
         other = phones[target]
@@ -167,11 +177,15 @@ def call(phone, target):
             other.connected.append(phone)
         else:  # in ANY other state, other can't be reached.
             print(f"{phone.name} hears busy")
-            phone.state = BUSY
 
 
 def conference(phone, target):
-    if phone.state != TALKING or target not in phones:
+    if phone.state == ONHOOK:
+        print(f"{phone.name} hears silence")
+        return
+
+    # must be talking to exactly one other phone (no 4 way calls)
+    if phone.state != TALKING or len(phone.connected) != 1 or target not in phones:
         print(f"{phone.name} hears denial")
         return
 
@@ -197,9 +211,13 @@ def conference(phone, target):
 
 
 def transfer(phone, target):
-    if phone.state != TALKING or target not in phones:
+    if phone.state == ONHOOK:
+        print(f"{phone.name} hears silence")
+        return
+
+    # must be talking to exactly one other phone (no transfer from a 3 way call)
+    if phone.state != TALKING or len(phone.connected) != 1 or target not in phones:
         print(f"{phone.name} hears denial")
-        phone.state = DENIAL
         return
 
     other = phones[target]
@@ -261,7 +279,11 @@ def main():
             "Usage: python3 main.py <phone file>. You must provide a phone file as a command line argument."
         )
         return
-    load_file(sys.argv[1])
+    try:
+        load_file(sys.argv[1])
+    except (OSError, UnicodeDecodeError) as e:
+        print(f"Error: could not read phone file '{sys.argv[1]}': {e}")
+        return
 
     # Print the prompt and the list of phones loaded from the file
     print(f"\nTelephone switching simulation: {

@@ -14,10 +14,8 @@ RINGBACK = "ringback"
 RINGING = "ringing"
 TALKING = "talking"
 SILENCE = "silence"
-DENIAL = "denial    "
 TRANSFERRING = "transferring"
 CONFERENCING = "conferencing"
-BUSY = "busy        "
 
 # Maximum number of phones allowed
 MAX_PHONES = 20
@@ -135,7 +133,8 @@ def onhook(phone):
 
         # Someone left a 3 way call: the other two keep talking
         if three_way:
-            print(f"{phone.connected[0].name} and {phone.connected[1].name} are talking")
+            print(f"{phone.connected[0].name} and {
+                  phone.connected[1].name} are talking")
             print(f"{phone.name} hears silence")
 
         # Disconnect phone from everybody

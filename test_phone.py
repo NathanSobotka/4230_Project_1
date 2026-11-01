@@ -375,6 +375,117 @@ def test_BP_parse_command():
 STATE_ROWS = []
 
 
+def test_ST01():
+    """Idle -> offhook -> Dialtone."""
+    out = run(STANDARD, ["alice offhook", "status"])
+
+    assert "Alice\tSTATUS: dialtone" in out
+
+
+def test_ST02():
+    """Dialtone -> onhook -> Onhook."""
+    out = run(STANDARD, ["alice offhook", "alice onhook"])
+    assert "Alice hears dialtone" in out
+
+
+def test_ST03():
+    """Dialtone -> call -> Ringback."""
+    out = run(STANDARD, ["alice offhook", "alice call bob", "status"])
+
+    assert "Alice\tSTATUS: ringback" in out
+
+
+def test_ST04():
+    """Ringback -> other phone offhook -> Talking."""
+    out = run(STANDARD, ["alice offhook", "alice call bob", "bob offhook"])
+    assert "Bob and Alice are talking" in out
+
+
+def test_ST05():
+    """Ringback -> onhook -> Onhook."""
+    out = run(STANDARD, ["alice offhook", "alice call bob", "alice onhook"])
+    assert "Alice hears ringback" in out
+    assert "Bob and Alice are talking" not in out
+
+
+def test_ST06():
+    """Onhook -> incoming call -> Ringing."""
+    out = run(STANDARD, ["alice offhook", "alice call bob", "status"])
+
+    assert "Bob\tSTATUS: ringing" in out
+
+
+def test_ST07():
+    """Ringing -> caller onhook -> Onhook."""
+    out = run(STANDARD, ["alice offhook", "alice call bob", "alice onhook"])
+    assert "Bob hears ringing" in out
+    assert "Bob and Alice are talking" not in out
+
+
+def test_ST08():
+    """Ringing -> offhook -> Talking."""
+    out = run(STANDARD, ["alice offhook", "alice call bob", "bob offhook"])
+    assert "Bob and Alice are talking" in out
+
+
+def test_ST09():
+    """Talking -> onhook -> Onhook."""
+    out = run(STANDARD, TWO_WAY + ["alice onhook", "status"])
+
+    assert "Alice\tSTATUS: onhook idle" in out
+
+
+def test_ST10():
+    """Talking -> other phone onhook -> Silence."""
+    out = run(STANDARD, TWO_WAY + ["bob onhook", "status"])
+
+    assert "Alice\tSTATUS: silence" in out
+
+
+def test_ST11():
+    """Silence -> onhook -> Onhook."""
+    out = run(STANDARD, TWO_WAY + ["bob onhook", "alice onhook", "status"])
+
+    assert "Alice\tSTATUS: onhook idle" in out
+
+
+def test_ST12():
+    """Talking -> transfer -> Transferring."""
+    out = run(STANDARD, TWO_WAY + ["alice transfer carol", "status"])
+
+    assert "Alice\tSTATUS: transferring" in out
+
+
+def test_ST13():
+    """Transferring -> onhook -> Onhook."""
+    out = run(
+        STANDARD,
+        TWO_WAY + ["alice transfer carol", "alice onhook", "status"]
+    )
+
+    assert "Alice\tSTATUS: onhook idle" in out
+
+
+def test_ST14():
+    """Talking -> conference -> Conferencing."""
+    out = run(STANDARD, TWO_WAY + ["alice conference carol", "status"])
+
+    assert "Alice\tSTATUS: conferencing" in out
+
+
+def test_ST15():
+    """Conferencing -> other phone offhook -> Talking."""
+    out = run(STANDARD, TWO_WAY + ["alice conference carol", "carol offhook"])
+    assert "Carol and Bob and Alice are talking" in out
+
+
+def test_ST16():
+    """Conferencing -> onhook -> Onhook."""
+    out = run(STANDARD, THREE_WAY + ["alice onhook"])
+    assert "Bob and Carol are talking" in out
+    assert "Alice hears silence" in out
+
+
 @pytest.mark.parametrize("start, event, expected_state, expected_output",
                          STATE_ROWS)
 def test_state_transition(start, event, expected_state, expected_output,

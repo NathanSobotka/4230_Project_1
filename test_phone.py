@@ -1,7 +1,7 @@
 # Automated tests for the telephone switching simulation (main.py).
 # How to run:  pytest -v test_phone.py
-# Sections: 1) setup/helpers  2) requirements tests RT01-RT21 (black box)
-#           3) basis path tests (stubs)  4) state transition tests (stub)
+# Sections: 1) setup/helpers  2) requirements tests RT01-RT29 (black box)
+#           3) state transition tests
 
 import os
 import subprocess
@@ -272,6 +272,80 @@ def test_RT21():
     assert "talking" in status_line(out, "Bob")
 
 
+def test_RT22():
+    """Req 14: Status works in any capitalization, actions too."""
+    for word in ["Status", "STATUS", "status"]:
+        out = run(STANDARD, [word])
+        assert "Error" not in out
+        assert "onhook idle" in status_line(out, "Alice")
+    out = run(STANDARD, ["Alice OFFHOOK", "Alice CALL Bob", "Bob Offhook",
+                         "alice onHook"])
+    assert "Bob and Alice are talking" in out
+    assert "Bob hears silence" in out
+    assert "Error" not in out
+
+
+@pytest.mark.parametrize("setup, bad", [
+    (["alice offhook", "alice call bob"], "alice call carol"),
+    (TWO_WAY, "alice call carol"),
+    (TWO_WAY + ["alice conference carol"], "alice call dave"),
+    (TWO_WAY + ["alice transfer carol"], "alice call dave"),
+])
+def test_RT23(setup, bad):
+    """Req 11e: call from ringback/talking/conferencing/transferring is denied."""
+    out = run(STANDARD, setup + [bad])
+    assert out.strip().splitlines()[-1] == "Alice hears denial"
+    assert "Carol hears ringing" not in out.split("Alice hears denial")[-1]
+
+
+def test_RT24():
+    """Req 11e: a phone cannot call itself (by name or number), denial not busy."""
+    out = run(STANDARD, ["alice offhook", "alice call alice", "alice call 11111"])
+    assert out.count("Alice hears denial") == 2
+    assert "busy" not in out
+
+
+def test_RT25():
+    """Req 11e: a phone cannot conference itself, denial not busy."""
+    out = run(STANDARD, TWO_WAY + ["alice conference alice", "status"])
+    assert "Alice hears denial" in out
+    assert "busy" not in out
+    assert "talking" in status_line(out, "Alice")
+
+
+def test_RT26():
+    """Req 12: onhook on an onhook idle phone gives silence."""
+    out = run(STANDARD, ["alice onhook"])
+    assert out.strip() == "Alice hears silence"
+
+
+def test_RT27():
+    """Req 12: a ringing phone that calls hears silence."""
+    out = run(STANDARD, ["alice offhook", "alice call bob", "bob call carol",
+                         "status"])
+    assert "Bob hears silence" in out
+    assert "Carol hears ringing" not in out
+    assert "ringing" in status_line(out, "Bob")
+
+
+def test_RT28():
+    """Req 12: a ringing phone that conferences hears silence."""
+    out = run(STANDARD, ["alice offhook", "alice call bob",
+                         "bob conference carol", "status"])
+    assert "Bob hears silence" in out
+    assert "denial" not in out
+    assert "ringing" in status_line(out, "Bob")
+
+
+def test_RT29():
+    """Req 12: a ringing phone that transfers hears silence; its onhook is unchanged."""
+    out = run(STANDARD, ["alice offhook", "alice call bob",
+                         "bob transfer carol", "bob onhook", "status"])
+    assert out.count("Bob hears silence") == 1
+    assert "denial" not in out
+    assert "ringing" in status_line(out, "Bob")  # onhook behavior unchanged
+
+
 # ------------------------------------------- white box helpers (direct) ----
 
 
@@ -337,9 +411,6 @@ def put_in_state(state):
 #   next state:  Alice's state afterwards
 #   output:      text that must appear in the output ("" for no check)
 # Example: (main.ONHOOK, "offhook", main.DIALTONE, "Alice hears dialtone")
-
-STATE_ROWS = []
-
 
 def test_ST01():
     """Idle -> offhook -> Dialtone."""
@@ -446,18 +517,7 @@ def test_ST15():
 
 
 def test_ST16():
-    """Conferencing -> onhook -> Onhook."""
+    """Talking in a 3 way call -> onhook -> Onhook, the other two keep talking."""
     out = run(STANDARD, THREE_WAY + ["alice onhook"])
     assert "Bob and Carol are talking" in out
     assert "Alice hears silence" in out
-
-
-@pytest.mark.parametrize("start, event, expected_state, expected_output",
-                         STATE_ROWS)
-def test_state_transition(start, event, expected_state, expected_output,
-                          capsys):
-    phones = put_in_state(start)
-    main.parse_command(f"Alice {event}")
-    out = capsys.readouterr().out
-    assert phones["Alice"].state == expected_state
-    assert expected_output in out

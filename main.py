@@ -140,7 +140,9 @@ def onhook(phone):
         # Disconnect phone from everybody
         phone.connected.clear()
 
-    # already onhook: ignore
+    if phone.state == ONHOOK:
+        print(f"{phone.name} hears silence")
+    # ringing: onhook is ignored (the call is cancelled by the caller)
     if phone.state != ONHOOK and phone.state != RINGING:
         three_way = phone.state == TALKING and len(phone.connected) == 2
         phone.state = ONHOOK
@@ -156,11 +158,14 @@ def status():
 
 
 def call(phone, target):
-    if phone.state == ONHOOK:
+    if phone.state == ONHOOK or phone.state == RINGING:
         print(f"{phone.name} hears silence")
-    elif phone.state == DIALTONE:
+    elif phone.state != DIALTONE:
+        # offhook but not at dialtone: only dialtone may call
+        print(f"{phone.name} hears denial")
+    else:
         # look for the phone
-        if target not in phones:
+        if target not in phones or phones[target] is phone:
             print(f"{phone.name} hears denial")
             return
 
@@ -179,7 +184,7 @@ def call(phone, target):
 
 
 def conference(phone, target):
-    if phone.state == ONHOOK:
+    if phone.state == ONHOOK or phone.state == RINGING:
         print(f"{phone.name} hears silence")
         return
 
@@ -194,6 +199,10 @@ def conference(phone, target):
             return
 
     other = phones[target]
+
+    if other is phone:
+        print(f"{phone.name} hears denial")
+        return
 
     if other.state != ONHOOK:
         print(f"{phone.name} hears busy")
@@ -210,7 +219,7 @@ def conference(phone, target):
 
 
 def transfer(phone, target):
-    if phone.state == ONHOOK:
+    if phone.state == ONHOOK or phone.state == RINGING:
         print(f"{phone.name} hears silence")
         return
 
@@ -238,12 +247,13 @@ def transfer(phone, target):
 def parse_command(line):
     parts = line.split()
     if len(parts) == 1:
-        if parts[0] == "status":
+        if parts[0].lower() == "status":
             status()
         else:
             print(f"Error: unknown command '{line}'")
     elif len(parts) == 2:
         who, action = parts
+        action = action.lower()
         who = who.title()  # bob, BOB, BOb all become Bob
         if who not in phones:
             print(f"Error: unknown phone '{who}'")
@@ -255,6 +265,7 @@ def parse_command(line):
             print(f"Error: unknown command '{line}'")
     elif len(parts) == 3:
         who, action, other = parts
+        action = action.lower()
         who = who.title()
         other = other.title()
         if who not in phones:

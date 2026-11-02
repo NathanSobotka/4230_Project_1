@@ -330,40 +330,6 @@ def put_in_state(state):
     return p
 
 
-# ------------------------------------------- basis path tests (stubs) ------
-# One test per function. Fill in after the control flow graphs are done:
-# build phones with make_phone / put_in_state, call the function directly
-# (capture output with capsys) and assert on state, connected and output.
-
-
-def test_BP_offhook():
-    pytest.skip("add after control flow graph is done")
-
-
-def test_BP_onhook():
-    pytest.skip("add after control flow graph is done")
-
-
-def test_BP_call():
-    pytest.skip("add after control flow graph is done")
-
-
-def test_BP_conference():
-    pytest.skip("add after control flow graph is done")
-
-
-def test_BP_transfer():
-    pytest.skip("add after control flow graph is done")
-
-
-def test_BP_load_file():
-    pytest.skip("add after control flow graph is done")
-
-
-def test_BP_parse_command():
-    pytest.skip("add after control flow graph is done")
-
-
 # ------------------------------------------- state transition tests -------
 # Each row: (start state, event, expected next state, expected output)
 #   start state: a main state constant, e.g. main.TALKING
